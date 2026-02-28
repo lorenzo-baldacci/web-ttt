@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic Tac Toe</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f1a;
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; flex-direction: column; align-items: center; gap: 28px; }
+    .screen.active { display: flex; }
+
+    h1 {
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #e0e0e0;
+    }
+
+    /* ── Setup ── */
+    .setup-form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 320px;
+    }
+
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .input-group label {
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #888;
+    }
+
+    .input-group label .badge {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    input[type="text"] {
+      padding: 12px 14px;
+      background: #1a1a2e;
+      border: 2px solid #333;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { outline: none; border-color: #5580ff; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 13px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover { opacity: 0.88; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary   { background: #5580ff; color: #fff; }
+    .btn-secondary { background: #333; color: #ccc; }
+    .btn-group { display: flex; gap: 14px; }
+
+    /* ── Scoreboard ── */
+    .scoreboard {
+      display: flex;
+      gap: 0;
+      background: #1a1a2e;
+      border: 1px solid #2a2a3e;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .player-score {
+      padding: 14px 28px;
+      text-align: center;
+      min-width: 160px;
+    }
+    .player-score + .player-score { border-left: 1px solid #2a2a3e; }
+
+    .player-score .name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .player-score .stats {
+      font-size: 0.82rem;
+      color: #777;
+      letter-spacing: 0.5px;
+    }
+    .player-score .stats span { color: #aaa; font-weight: 600; }
+
+    /* ── Turn indicator ── */
+    .turn-indicator {
+      font-size: 1.1rem;
+      color: #666;
+      height: 28px;
+    }
+    .turn-indicator b { color: #fff; }
+
+    /* ── Board ── */
+    #game-board { display: block; }
+    .cell { cursor: pointer; }
+    .cell:hover rect { fill: rgba(255,255,255,0.04); }
+
+    /* ── Result ── */
+    .result-winner {
+      font-size: 2.2rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .result-sub {
+      font-size: 1rem;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ SETUP SCREEN ═══ -->
+  <div id="setup-screen" class="screen active">
+    <h1>Tic Tac Toe</h1>
+    <div class="setup-form">
+      <div class="input-group">
+        <label>Player 1 <span class="badge" style="background:#4a9eff;border-radius:50%;"></span> plays X</label>
+        <input type="text" id="p1-input" placeholder="Enter name…" maxlength="20" />
+      </div>
+      <div class="input-group">
+        <label>Player 2 <span class="badge" style="background:#ff4a4a;border-radius:50%;"></span> plays O</label>
+        <input type="text" id="p2-input" placeholder="Enter name…" maxlength="20" />
+      </div>
+      <button class="btn btn-primary" onclick="beginGame(false)">Start Game</button>
+    </div>
+  </div>
+
+  <!-- ═══ GAME SCREEN ═══ -->
+  <div id="game-screen" class="screen">
+    <h1>Tic Tac Toe</h1>
+
+    <div class="scoreboard">
+      <div class="player-score">
+        <div class="name" id="sb-p1-name" style="color:#4a9eff;">Player 1</div>
+        <div class="stats" id="sb-p1-stats">W: <span>0</span> · L: <span>0</span> · T: <span>0</span></div>
+      </div>
+      <div class="player-score">
+        <div class="name" id="sb-p2-name" style="color:#ff4a4a;">Player 2</div>
+        <div class="stats" id="sb-p2-stats">W: <span>0</span> · L: <span>0</span> · T: <span>0</span></div>
+      </div>
+    </div>
+
+    <div class="turn-indicator" id="turn-indicator">&nbsp;</div>
+
+    <!--
+      Board: 360×360 · cells 120×120
+      Grid lines at x=120, x=240, y=120, y=240
+      Cell centres: (60,60) (180,60) (300,60)
+                    (60,180)(180,180)(300,180)
+                    (60,300)(180,300)(300,300)
+    -->
+    <svg id="game-board" width="360" height="360" viewBox="0 0 360 360"
+         xmlns="http://www.w3.org/2000/svg">
+
+      <!-- White grid lines -->
+      <line x1="120" y1="12"  x2="120" y2="348" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <line x1="240" y1="12"  x2="240" y2="348" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <line x1="12"  y1="120" x2="348" y2="120" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <line x1="12"  y1="240" x2="348" y2="240" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Drawn symbols go here -->
+      <g id="symbols"></g>
+
+      <!-- Winning line (hidden until game ends) -->
+      <line id="win-line" x1="0" y1="0" x2="0" y2="0"
+            stroke="#ffd700" stroke-width="6" stroke-linecap="round"
+            opacity="0" stroke-dasharray="400" stroke-dashoffset="400">
+        <animate id="win-anim" attributeName="stroke-dashoffset"
+                 from="400" to="0" dur="0.4s" fill="freeze" begin="indefinite"/>
+      </line>
+
+      <!-- Invisible clickable cells -->
+      <g id="cells">
+        <g class="cell" onclick="cellClick(0)"><rect x="0"   y="0"   width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(1)"><rect x="120" y="0"   width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(2)"><rect x="240" y="0"   width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(3)"><rect x="0"   y="120" width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(4)"><rect x="120" y="120" width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(5)"><rect x="240" y="120" width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(6)"><rect x="0"   y="240" width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(7)"><rect x="120" y="240" width="120" height="120" fill="transparent"/></g>
+        <g class="cell" onclick="cellClick(8)"><rect x="240" y="240" width="120" height="120" fill="transparent"/></g>
+      </g>
+    </svg>
+  </div>
+
+  <!-- ═══ RESULT SCREEN ═══ -->
+  <div id="result-screen" class="screen">
+    <h1>Game Over</h1>
+    <div class="result-winner" id="result-winner">—</div>
+    <div class="result-sub"   id="result-sub">—</div>
+
+    <div class="scoreboard">
+      <div class="player-score">
+        <div class="name" id="res-p1-name" style="color:#4a9eff;">Player 1</div>
+        <div class="stats" id="res-p1-stats">W: <span>0</span> · L: <span>0</span> · T: <span>0</span></div>
+      </div>
+      <div class="player-score">
+        <div class="name" id="res-p2-name" style="color:#ff4a4a;">Player 2</div>
+        <div class="stats" id="res-p2-stats">W: <span>0</span> · L: <span>0</span> · T: <span>0</span></div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary"   onclick="beginGame(true)">Play Again</button>
+      <button class="btn btn-secondary" onclick="goToSetup()">New Players</button>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────
+    const WIN_COMBOS = [
+      [0,1,2],[3,4,5],[6,7,8],  // rows
+      [0,3,6],[1,4,7],[2,5,8],  // cols
+      [0,4,8],[2,4,6]           // diagonals
+    ];
+
+    // Win-line endpoints [x1,y1,x2,y2] matching WIN_COMBOS order
+    const WIN_LINES = [
+      [12,60, 348,60],   [12,180,348,180],  [12,300,348,300],
+      [60,12, 60,348],   [180,12,180,348],  [300,12,300,348],
+      [12,12, 348,348],  [348,12,12,348]
+    ];
+
+    // Cell centres [cx, cy] for index 0–8
+    const CENTRES = [
+      [60,60],[180,60],[300,60],
+      [60,180],[180,180],[300,180],
+      [60,300],[180,300],[300,300]
+    ];
+
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    let board        = Array(9).fill(null);
+    let current      = 'X';   // 'X' or 'O'
+    let active       = false;
+
+    const players = {
+      X: { name: 'Player 1', wins: 0, losses: 0, ties: 0 },
+      O: { name: 'Player 2', wins: 0, losses: 0, ties: 0 }
+    };
+
+    // ── Screen helper ──────────────────────────────────────────────────────
+    function show(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ── Setup → Game ───────────────────────────────────────────────────────
+    function beginGame(keepPlayers) {
+      if (!keepPlayers) {
+        players.X.name = document.getElementById('p1-input').value.trim() || 'Player 1';
+        players.O.name = document.getElementById('p2-input').value.trim() || 'Player 2';
+        players.X.wins = players.X.losses = players.X.ties = 0;
+        players.O.wins = players.O.losses = players.O.ties = 0;
+      }
+
+      board   = Array(9).fill(null);
+      current = 'X';
+      active  = true;
+
+      // Clear SVG symbols & hide win line
+      document.getElementById('symbols').innerHTML = '';
+      resetWinLine();
+
+      // Re-enable cells
+      document.querySelectorAll('#cells .cell').forEach(c => {
+        c.style.pointerEvents = 'all';
+        c.style.cursor = 'pointer';
+      });
+
+      refreshScoreboard();
+      refreshTurn();
+      show('game-screen');
+    }
+
+    function goToSetup() {
+      document.getElementById('p1-input').value = '';
+      document.getElementById('p2-input').value = '';
+      show('setup-screen');
+    }
+
+    // ── Cell click ─────────────────────────────────────────────────────────
+    function cellClick(idx) {
+      if (!active || board[idx]) return;
+
+      board[idx] = current;
+      drawMark(idx, current);
+
+      const winIdx = getWin();
+      if (winIdx !== null) {
+        active = false;
+        disableCells();
+        animateWinLine(winIdx);
+
+        players[current].wins++;
+        players[current === 'X' ? 'O' : 'X'].losses++;
+        refreshScoreboard();
+
+        setTimeout(() => showResult(current), 600);
+
+      } else if (board.every(Boolean)) {
+        active = false;
+        disableCells();
+        players.X.ties++;
+        players.O.ties++;
+        refreshScoreboard();
+        setTimeout(() => showResult(null), 400);
+
+      } else {
+        current = current === 'X' ? 'O' : 'X';
+        refreshTurn();
+      }
+    }
+
+    // ── Drawing ────────────────────────────────────────────────────────────
+    function drawMark(idx, player) {
+      const [cx, cy] = CENTRES[idx];
+      const g = document.createElementNS(SVG_NS, 'g');
+
+      if (player === 'O') {
+        const circle = document.createElementNS(SVG_NS, 'circle');
+        circle.setAttribute('cx', cx);
+        circle.setAttribute('cy', cy);
+        circle.setAttribute('r',  38);
+        circle.setAttribute('stroke', '#ff4a4a');
+        circle.setAttribute('stroke-width', '8');
+        circle.setAttribute('fill', 'none');
+        circle.setAttribute('stroke-dasharray', '239');
+        circle.setAttribute('stroke-dashoffset', '239');
+        g.appendChild(circle);
+
+        // Draw animation via SMIL
+        const anim = document.createElementNS(SVG_NS, 'animate');
+        anim.setAttribute('attributeName', 'stroke-dashoffset');
+        anim.setAttribute('from', '239');
+        anim.setAttribute('to',   '0');
+        anim.setAttribute('dur',  '0.35s');
+        anim.setAttribute('fill', 'freeze');
+        circle.appendChild(anim);
+        anim.beginElement();
+
+      } else {
+        // Line 1: top-left → bottom-right
+        const l1 = document.createElementNS(SVG_NS, 'line');
+        l1.setAttribute('x1', cx - 34); l1.setAttribute('y1', cy - 34);
+        l1.setAttribute('x2', cx + 34); l1.setAttribute('y2', cy + 34);
+        l1.setAttribute('stroke', '#4a9eff');
+        l1.setAttribute('stroke-width', '8');
+        l1.setAttribute('stroke-linecap', 'round');
+        l1.setAttribute('stroke-dasharray', '97');
+        l1.setAttribute('stroke-dashoffset', '97');
+
+        const a1 = document.createElementNS(SVG_NS, 'animate');
+        a1.setAttribute('attributeName', 'stroke-dashoffset');
+        a1.setAttribute('from', '97'); a1.setAttribute('to', '0');
+        a1.setAttribute('dur', '0.2s'); a1.setAttribute('fill', 'freeze');
+        l1.appendChild(a1);
+
+        // Line 2: top-right → bottom-left
+        const l2 = document.createElementNS(SVG_NS, 'line');
+        l2.setAttribute('x1', cx + 34); l2.setAttribute('y1', cy - 34);
+        l2.setAttribute('x2', cx - 34); l2.setAttribute('y2', cy + 34);
+        l2.setAttribute('stroke', '#4a9eff');
+        l2.setAttribute('stroke-width', '8');
+        l2.setAttribute('stroke-linecap', 'round');
+        l2.setAttribute('stroke-dasharray', '97');
+        l2.setAttribute('stroke-dashoffset', '97');
+
+        const a2 = document.createElementNS(SVG_NS, 'animate');
+        a2.setAttribute('attributeName', 'stroke-dashoffset');
+        a2.setAttribute('from', '97'); a2.setAttribute('to', '0');
+        a2.setAttribute('dur', '0.2s'); a2.setAttribute('begin', '0.18s');
+        a2.setAttribute('fill', 'freeze');
+        l2.appendChild(a2);
+
+        g.appendChild(l1);
+        g.appendChild(l2);
+        a1.beginElement();
+        // a2 will start via begin offset
+      }
+
+      document.getElementById('symbols').appendChild(g);
+    }
+
+    function animateWinLine(comboIdx) {
+      const [x1, y1, x2, y2] = WIN_LINES[comboIdx];
+      const wl   = document.getElementById('win-line');
+      const anim = document.getElementById('win-anim');
+      wl.setAttribute('x1', x1); wl.setAttribute('y1', y1);
+      wl.setAttribute('x2', x2); wl.setAttribute('y2', y2);
+      wl.setAttribute('opacity', '1');
+      anim.beginElement();
+    }
+
+    function resetWinLine() {
+      const wl = document.getElementById('win-line');
+      wl.setAttribute('opacity', '0');
+      wl.setAttribute('x1', '0'); wl.setAttribute('y1', '0');
+      wl.setAttribute('x2', '0'); wl.setAttribute('y2', '0');
+    }
+
+    // ── Logic helpers ──────────────────────────────────────────────────────
+    function getWin() {
+      for (let i = 0; i < WIN_COMBOS.length; i++) {
+        const [a, b, c] = WIN_COMBOS[i];
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) return i;
+      }
+      return null;
+    }
+
+    function disableCells() {
+      document.querySelectorAll('#cells .cell').forEach(c => {
+        c.style.pointerEvents = 'none';
+        c.style.cursor = 'default';
+      });
+    }
+
+    // ── UI refresh ─────────────────────────────────────────────────────────
+    function statsText(p) {
+      return `W: <span>${p.wins}</span> · L: <span>${p.losses}</span> · T: <span>${p.ties}</span>`;
+    }
+
+    function refreshScoreboard() {
+      document.getElementById('sb-p1-name').textContent  = players.X.name + ' (X)';
+      document.getElementById('sb-p2-name').textContent  = players.O.name + ' (O)';
+      document.getElementById('sb-p1-stats').innerHTML   = statsText(players.X);
+      document.getElementById('sb-p2-stats').innerHTML   = statsText(players.O);
+
+      document.getElementById('res-p1-name').textContent = players.X.name + ' (X)';
+      document.getElementById('res-p2-name').textContent = players.O.name + ' (O)';
+      document.getElementById('res-p1-stats').innerHTML  = statsText(players.X);
+      document.getElementById('res-p2-stats').innerHTML  = statsText(players.O);
+    }
+
+    function refreshTurn() {
+      const p    = players[current];
+      const color = current === 'X' ? '#4a9eff' : '#ff4a4a';
+      document.getElementById('turn-indicator').innerHTML =
+        `<b style="color:${color}">${p.name}</b>'s turn`;
+    }
+
+    function showResult(winner) {
+      refreshScoreboard();
+      const winnerEl = document.getElementById('result-winner');
+      const subEl    = document.getElementById('result-sub');
+
+      if (winner) {
+        const p     = players[winner];
+        const color = winner === 'X' ? '#4a9eff' : '#ff4a4a';
+        winnerEl.textContent  = `${p.name} wins!`;
+        winnerEl.style.color  = color;
+        subEl.textContent     = 'Congratulations!';
+      } else {
+        winnerEl.textContent = "It's a tie!";
+        winnerEl.style.color = '#aaa';
+        subEl.textContent    = 'Well played, both of you.';
+      }
+
+      show('result-screen');
+    }
+  </script>
+</body>
+</html>
